@@ -50,7 +50,7 @@ from data_list import load_img_list
 
 # if __name__=="__main__":
 #     app.run()
-    
+     
 ### 여기까지 ###
 
 
