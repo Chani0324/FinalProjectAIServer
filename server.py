@@ -66,7 +66,7 @@ api = Api(app)
 # Reading img features
 fe = FeatureExtractor()
 
-features, df_img = load_img_list()
+features_top, features_bottom, df_top, df_bottom = load_img_list()
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -83,34 +83,60 @@ def upload():
         
         img = Image.fromarray(img.astype('uint8'))
         
-        img.show() 
+        # img.show() 
         
-    #     # Run Search
-        query = fe.extract(img)
-        # dists = np.linalg.norm(features - query, axis=1) # L2 distance to the features
-        dists = np.linalg.norm(features - query, axis=1) # L2 distance to the features
-        print("================")
-        print(features / query)
-        print("================")
-        print(features - query)
-        ids = np.argsort(dists)[:5]    # Top 30 results
-        # scores = {(dists[id], df_img.iloc[id]['path_url'], df_img.iloc[id]['url']) for id in ids}
-        result_img_path = [df_img.iloc[id]['path_url'] for id in ids]
-        result_img_link = [df_img.iloc[id]['url'] for id in ids]
-        result_img_score = [dists[id] for id in ids]
+        # image_parsing {"outer" : [np.array, ...], "shortsleeve" : [np.array, ...], }
+        array_top, array_bottom = run(img)
         
-        # new_path = [str(img_paths[id]).replace("\\", "/") for id in ids]
+        if array_top:
+            imgs_top = [Image.fromarray(img.astype('uint8')) for img in array_top]
+            
+            # Run Search
+            dict_top = {}
+            
+            for idx, img_top in enumerate(imgs_top):
+                query_top = fe.extract(img_top)
+                dists_top = np.linalg.norm(features_top - query_top, axis=1)
+                ids_top = np.argsort(dists_top)[:30] # top result sort
+                
+                result_img_path_top = [df_top.iloc[id]['path_url'] for id in ids_top]
+                result_img_link_top = [df_top.iloc[id]['url'] for id in ids_top]
+                result_img_score_top = [dists_top[id] for id in ids_top]
+                
+                dict_top[f'top_{idx}'] = {"result_img_path_top" : result_img_path_top,
+                                        "result_img_link_top" : result_img_link_top,
+                                        "result_img_score_top" : result_img_score_top}
         
-        return flask.jsonify({"result_img_path":str(result_img_path),
-                              "result_img_link":str(result_img_link),
-                              "result_img_score":str(result_img_score)})
+            
+            
+        if array_bottom:
+            imgs_bottom = [Image.fromarray(img.astype('uint8')) for img in array_bottom]
+        
+            # Run Search
+            dict_bottom = {}
+            
+            for idx, img_bottom in enumerate(imgs_bottom):
+                query_bottom = fe.extract(img_bottom)
+                dists_bottom = np.linalg.norm(features_bottom - query_bottom, axis=1)
+                ids_bottom = np.argsort(dists_bottom)[:30] # top result sort
+                
+                result_img_path_bottom = [df_bottom.iloc[id]['path_url'] for id in ids_bottom]
+                result_img_link_bottom = [df_bottom.iloc[id]['url'] for id in ids_bottom]
+                result_img_score_bottom = [dists_bottom[id] for id in ids_bottom]
+                
+                dict_bottom[f'bottom_{idx}'] = {"result_img_path_bottom" : result_img_path_bottom,
+                                                "result_img_link_bottom" : result_img_link_bottom,
+                                                "result_img_score_bottom" : result_img_score_bottom}
+        
+        
+        return flask.jsonify({"result" : "true",
+                              "number_of_top" : str(len(array_top)),
+                              "top" : str(dict_top),
+                              "number_of_bottom" : str(len(array_bottom)),
+                              "bottom" : str(dict_bottom)})
     else:
-        return flask.jsonify({"result":"잘못된 요청입니다."})
+        return flask.jsonify({"result" : "false"})
     
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    return render_template("index.html")
 
 if __name__=="__main__":
     # app.run(host=0.0.0.0, port=5000) 모든 호스트로 접속 가능.
